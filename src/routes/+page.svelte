@@ -1,10 +1,8 @@
 <script>
-	import { onMount } from 'svelte';
 	import { marked } from 'marked';
 	import DOMPurify from 'dompurify';
 
 	let concept = 'Random Forests';
-	let explanation = '';
 	let answer;
 
 	let result = '';
@@ -19,23 +17,24 @@
 			}
 		});
 		const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-		let accumulated = ''; // Accumulate chunks here
+		let accumulatedContent = ''; // Accumulate Markdown content here
 
 		while (true) {
 			const { value, done } = await reader.read();
 			if (done) break;
 
-			accumulated += value;
+			accumulatedContent += value;
 
 			// Split accumulated data by newline
 			let newlineIndex;
-			while ((newlineIndex = accumulated.indexOf('\n')) !== -1) {
-				const jsonString = accumulated.substring(0, newlineIndex);
-				accumulated = accumulated.substring(newlineIndex + 1);
+			while ((newlineIndex = accumulatedContent.indexOf('\n')) !== -1) {
+				const jsonString = accumulatedContent.substring(0, newlineIndex);
+				accumulatedContent = accumulatedContent.substring(newlineIndex + 1);
 
 				try {
 					const json = JSON.parse(jsonString);
 					if (json.choices && json.choices[0] && json.choices[0].delta) {
+						// Append only the content part to the result
 						result += json.choices[0].delta.content;
 					}
 				} catch (error) {
@@ -43,6 +42,12 @@
 				}
 			}
 		}
+		processMarkdown(result);
+	}
+	function processMarkdown(markdown) {
+		const rawHtml = marked(markdown);
+		const safeHtml = DOMPurify.sanitize(rawHtml);
+		result = safeHtml; // Update the result with sanitized HTML
 	}
 </script>
 
@@ -52,7 +57,7 @@
 		<input class="input input-primary" bind:value={concept} />
 		<button class="btn btn-primary" type="button" on:click={getStream}> Explain </button>
 	</div>
-	<div class="my-4 prose">{result}</div>
+	<div class="my-4 prose">{@html result}</div>
 
 	<br />
 </div>
