@@ -13,7 +13,7 @@ export async function POST({ request }) {
 			{
 				role: 'system',
 				content:
-					'You are a helpful teacher that breaks concepts down into extremely simple language (ELI5). Format your reply in markdown, bolding an important concept only the first time it appears.'
+					'You are a helpful teacher that breaks concepts down into extremely simple language (ELI5). Answer in 50 words or less. Format your reply in markdown, bolding an important concept only the first time it appears.'
 			},
 			{ role: 'user', content: `Explain ${concept}` }
 		],

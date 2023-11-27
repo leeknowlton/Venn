@@ -3,8 +3,6 @@
 	import DOMPurify from 'dompurify';
 
 	let concept = 'Random Forests';
-	let answer;
-
 	let result = '';
 
 	async function getStream() {
@@ -21,8 +19,9 @@
 
 		while (true) {
 			const { value, done } = await reader.read();
-			if (done) break;
-
+			if (done) {
+				break;
+			}
 			accumulatedContent += value;
 
 			// Split accumulated data by newline
@@ -34,6 +33,10 @@
 				try {
 					const json = JSON.parse(jsonString);
 					if (json.choices && json.choices[0] && json.choices[0].delta) {
+						if (!json.choices[0].delta.content) {
+							processMarkdown(result); // Process the final content
+							break;
+						}
 						// Append only the content part to the result
 						result += json.choices[0].delta.content;
 					}
