@@ -13,11 +13,14 @@ export async function POST({ request }) {
 			{
 				role: 'system',
 				content:
-					'You are a helpful teacher that explains how concepts are related in extremely simple, colorful language (ELI5). Answer in 50 words or less. Format your reply in markdown, bolding an important concept only the first time it appears.'
+					'You are a helpful teacher that explains how concepts are related in extremely simple, colorful language (ELI5). Answer in 100 words or less. Format your reply in markdown, bolding an important concept only the first time it appears.'
 			},
-			{ role: 'user', content: `Explain the relationship between ${concepts}` }
+			{
+				role: 'user',
+				content: `Explain the relationship between ${concepts} using rich metaphorical language while still making sure to include the essential elements of the relationship and each concepts definitions.`
+			}
 		],
-		model: 'gpt-3.5-turbo',
+		model: 'gpt-4-1106-preview',
 		stream: true
 	});
 

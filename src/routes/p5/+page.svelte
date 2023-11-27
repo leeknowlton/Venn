@@ -7,21 +7,36 @@
 	let result = '';
 
 	let showModal = false;
-	let modalContent = 'Some arbitrary text';
+	let imageurl = '';
 
 	let selectedConcepts = [];
 
+	// const aiConcepts = [
+	// 	'Random Forests',
+	// 	'Stochastic Gradient Descent',
+	// 	'Neural Networks',
+	// 	'Fine-tuning',
+	// 	'Deep Learning',
+	// 	'Q*',
+	// 	'Reinforcement Learning',
+	// 	'Generative Adversarial Networks',
+	// 	'Support Vector Machines',
+	// 	'Principal Component Analysis'
+	// ];
+
 	const aiConcepts = [
-		'Random Forests',
+		'Bible',
 		'Stochastic Gradient Descent',
-		'Neural Networks',
-		'Fine-tuning',
-		'Deep Learning',
-		'Q*',
-		'Reinforcement Learning',
-		'Generative Adversarial Networks',
-		'Support Vector Machines',
-		'Principal Component Analysis'
+		'Teleological Fallacy',
+		'Nietzsche',
+		'Bhagavad Gita',
+		'Tao Te Ching',
+		'Torah',
+		'Tripitaka (Pali Canon)',
+		'Book of Mormon',
+		'Upanishads',
+		'Guru Granth Sahib',
+		'Avesta'
 	];
 
 	function handleClosed(event) {
@@ -37,8 +52,8 @@
 				'content-type': 'application/json'
 			}
 		});
-		const res = JSON.parse(response);
-		console.log(res);
+		let image = await response.json();
+		imageurl = image.data[0].url;
 	}
 
 	async function getStream() {
@@ -158,6 +173,7 @@
 						}
 					});
 					getStream();
+					getImage();
 					showModal = true;
 					// Remove both bubbles
 					bubbles = bubbles.filter((b) => !b.selected);
@@ -207,6 +223,12 @@
 				this.dx = p5.random(-1, 1);
 				this.dy = p5.random(-1, 1);
 				this.selected = false;
+				this.squiggleAmplitude = p5.random(5, 15);
+				this.eyeSize = this.radius / 5;
+				this.eyeOffsetX = this.radius / 3; // Horizontal offset for the eyes
+				this.eyeOffsetY = -this.eyeSize; // Vertical offset for the eyes
+				this.pupilSize = this.eyeSize / 2;
+				this.blobColor = p5.color(255, 223, 0); // Yellow color for the blob
 			}
 
 			toggleSelected() {
@@ -242,18 +264,75 @@
 			}
 
 			display() {
-				this.p5.stroke(0);
-				this.p5.strokeWeight(2);
+				// Draw the squiggly blob
+				this.p5.push();
+				this.p5.translate(this.x, this.y);
+				this.p5.beginShape();
+				const numPoints = 100;
+				const angleStep = this.p5.TWO_PI / numPoints;
+				for (let i = 0; i <= numPoints; i++) {
+					let angle = i * angleStep;
+					let radiusOffset =
+						this.squiggleAmplitude * this.p5.sin(6 * angle + this.p5.millis() / 500);
+					let x = (this.radius + radiusOffset) * this.p5.cos(angle);
+					let y = (this.radius + radiusOffset) * this.p5.sin(angle);
+					this.p5.vertex(x, y);
+				}
 				if (this.selected) {
 					this.p5.fill(255, 182, 193);
 				} else {
 					this.p5.fill(173, 216, 230);
 				}
-				this.p5.ellipse(this.x, this.y, this.radius * 2, this.radius * 1.5);
-				this.p5.fill(0);
+				this.p5.endShape(this.p5.CLOSE);
+				this.p5.pop();
+
+				// Draw the eyes
+				this.p5.fill(255); // White for the eyes
+				this.p5.ellipse(
+					this.x - this.eyeOffsetX,
+					this.y + this.eyeOffsetY,
+					this.eyeSize * 2,
+					this.eyeSize * 2
+				);
+				this.p5.ellipse(
+					this.x + this.eyeOffsetX,
+					this.y + this.eyeOffsetY,
+					this.eyeSize * 2,
+					this.eyeSize * 2
+				);
+
+				// Calculate pupil direction based on mouse position
+				let angleToMouse = this.p5.atan2(this.p5.mouseY - this.y, this.p5.mouseX - this.x);
+				let pupilOffset = this.p5.map(
+					this.p5.dist(this.p5.mouseX, this.p5.mouseY, this.x, this.y),
+					0,
+					500,
+					0,
+					this.eyeSize / 2
+				);
+				let pupilX = this.p5.cos(angleToMouse) * pupilOffset;
+				let pupilY = this.p5.sin(angleToMouse) * pupilOffset;
+
+				// Draw the pupils
+				this.p5.fill(0); // Black for the pupils
+				this.p5.ellipse(
+					this.x - this.eyeOffsetX + pupilX,
+					this.y + this.eyeOffsetY + pupilY,
+					this.pupilSize,
+					this.pupilSize
+				);
+				this.p5.ellipse(
+					this.x + this.eyeOffsetX + pupilX,
+					this.y + this.eyeOffsetY + pupilY,
+					this.pupilSize,
+					this.pupilSize
+				);
+
+				// Draw the text
+				this.p5.fill(0); // Black for the text
 				this.p5.noStroke();
 				this.p5.textAlign(this.p5.CENTER, this.p5.CENTER);
-				this.p5.text(this.text, this.x, this.y);
+				this.p5.text(this.text, this.x, this.y + this.eyeOffsetY + this.eyeSize * 2);
 			}
 		}
 	};
@@ -262,6 +341,9 @@
 <P5 {sketch} />
 
 <Modal bind:showModal on:closed={handleClosed}>
-	<h2 slot="header">Concepts</h2>
+	<h2 slot="header">Venn</h2>
 	<div class="my-4 prose">{@html result}</div>
+	{#if imageurl}
+		<img src={imageurl} alt="Dall-e" />
+	{/if}
 </Modal>
