@@ -4,7 +4,7 @@
 
 	let concept = 'Random Forests';
 	let result = '';
-
+	let imageurl = '';
 	async function getStream() {
 		result = '';
 		const response = await fetch('/api/openai', {
@@ -52,6 +52,18 @@
 		const safeHtml = DOMPurify.sanitize(rawHtml);
 		result = safeHtml; // Update the result with sanitized HTML
 	}
+
+	async function getImage() {
+		const response = await fetch('/api/dalle', {
+			method: 'POST',
+			body: JSON.stringify({}),
+			headers: {
+				'content-type': 'application/json'
+			}
+		});
+		let image = await response.json();
+		imageurl = image.data[0].url;
+	}
 </script>
 
 <div class="w-1/2 m-auto my-4">
@@ -63,6 +75,9 @@
 	<div class="my-4 prose">{@html result}</div>
 
 	<br />
+
+	<button on:click={getImage}>Get Image</button>
+	<img src={imageurl} alt="Here" />
 </div>
 
 <style>
