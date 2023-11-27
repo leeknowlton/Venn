@@ -20,7 +20,7 @@ export async function POST({ request }) {
 				content: `Explain the relationship between ${concepts} using rich metaphorical language while still making sure to include the essential elements of the relationship and each concepts definitions.`
 			}
 		],
-		model: 'gpt-4-1106-preview',
+		model: 'gpt-3.5-turbo',
 		stream: true
 	});
 
