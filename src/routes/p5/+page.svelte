@@ -11,7 +11,7 @@
 
 	let selectedConcepts = [];
 
-	// const aiConcepts = [
+	// const concepts = [
 	// 	'Random Forests',
 	// 	'Stochastic Gradient Descent',
 	// 	'Neural Networks',
@@ -24,7 +24,7 @@
 	// 	'Principal Component Analysis'
 	// ];
 
-	const aiConcepts = [
+	const concepts = [
 		'Bible',
 		'Stochastic Gradient Descent',
 		'Teleological Fallacy',
@@ -113,7 +113,7 @@
 			p5.textFont('Helvetica');
 			p5.textSize(12);
 
-			aiConcepts.forEach((concept, index) => {
+			concepts.forEach((concept, index) => {
 				let x = p5.random(p5.width);
 				let y = p5.random(p5.height);
 				let noiseOffsetX = p5.random(1000);
