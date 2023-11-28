@@ -3,6 +3,11 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import { marked } from 'marked';
 	import DOMPurify from 'dompurify';
+	import { onMount } from 'svelte';
+
+	let currentHint = 'A hint describing two items but not using their names';
+	let selections = [];
+	let hasWon = false;
 
 	let result = '';
 
@@ -10,6 +15,11 @@
 	let imageurl = '';
 
 	let selectedConcepts = [];
+
+	onMount(() => {
+		selectedConcepts = ['Bhagavad Gita', 'Stochastic Gradient Descent'];
+		getStream();
+	});
 
 	// const concepts = [
 	// 	'Random Forests',
@@ -29,14 +39,12 @@
 		'Stochastic Gradient Descent',
 		'Teleological Fallacy',
 		'Nietzsche',
+		'Principal Component Analysis',
+		'Random Forests',
 		'Bhagavad Gita',
 		'Tao Te Ching',
 		'Torah',
-		'Tripitaka (Pali Canon)',
-		'Book of Mormon',
-		'Upanishads',
-		'Guru Granth Sahib',
-		'Avesta'
+		'Upanishads'
 	];
 
 	function handleClosed(event) {
@@ -58,7 +66,7 @@
 
 	async function getStream() {
 		result = '';
-		const response = await fetch('/api/double', {
+		const response = await fetch('/api/quiz', {
 			method: 'POST',
 			body: JSON.stringify({ selectedConcepts }),
 			headers: {
@@ -101,7 +109,7 @@
 	function processMarkdown(markdown) {
 		const rawHtml = marked(markdown);
 		const safeHtml = DOMPurify.sanitize(rawHtml);
-		result = safeHtml; // Update the result with sanitized HTML
+		currentHint = safeHtml; // Update the result with sanitized HTML
 	}
 
 	const sketch = (p5) => {
@@ -181,6 +189,17 @@
 			} else {
 				// Clicked outside a bubble, reset selections
 				bubbles.forEach((b) => (b.selected = false));
+			}
+			let clickedObject = getObjectAtMouse(); // You'll need to define this function
+
+			if (clickedObject) {
+				selections.push(clickedObject);
+				if (selections.length > 2) {
+					selections.shift(); // Keep only the last two selections
+				}
+			} else {
+				// Clicked outside any object, reset selections
+				selections = [];
 			}
 		};
 
@@ -336,8 +355,28 @@
 			}
 		}
 	};
+
+	function checkSelection() {
+		// Logic to check if selections match the hint
+		if (selectionsMatchHint(selections, currentHint)) {
+			hasWon = true;
+		} else {
+			hasWon = false;
+			// Optionally, provide feedback or reset selections
+		}
+	}
+	const quizContent = [
+		{ hint: 'Hint for objects A and B', correct: ['A', 'B'] }
+		// More hints and their answers
+	];
 </script>
 
+<div>
+	<p>Hint: {@html currentHint}</p>
+	{#if hasWon}
+		<p>Congratulations! You've found the right objects!</p>
+	{/if}
+</div>
 <P5 {sketch} />
 
 <Modal bind:showModal on:closed={handleClosed}>
