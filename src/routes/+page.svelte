@@ -1,6 +1,7 @@
 <script>
 	import { marked } from 'marked';
 	import DOMPurify from 'dompurify';
+	import Form from '$lib/components/form.svelte';
 
 	let concept = 'Random Forests';
 	let result = '';
@@ -79,6 +80,8 @@
 	<button on:click={getImage}>Get Image</button>
 	<img src={imageurl} alt="Here" />
 </div>
+
+<Form></Form>
 
 <style>
 </style>
