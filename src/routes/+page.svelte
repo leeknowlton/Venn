@@ -153,7 +153,7 @@
 						}
 					});
 					getStream();
-					getImage();
+					// getImage();
 					showModal = true;
 					// Remove both bubbles
 					bubbles = bubbles.filter((b) => !b.selected);
