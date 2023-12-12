@@ -12,20 +12,11 @@
 
 	let showModal = false;
 	let imageurl = '';
+	let explosionInput = '';
 
 	let selectedConcepts = [];
 
-	const concepts = [
-		'Stochastic Gradient Descent',
-		'Teleological Fallacy',
-		'Operational Excellence',
-		'Customer Obsession',
-		'Nietzsche',
-		'Bhagavad Gita',
-		'Tao Te Ching',
-		'Torah',
-		'Upanishads'
-	];
+	const concepts = ['Stochastic Gradient Descent', 'Bhagavad Gita'];
 
 	function handleClosed(event) {
 		selectedConcepts = [];
@@ -340,34 +331,76 @@
 			}
 		}
 	};
+
+	async function getExplosion() {
+		const response = await fetch('/api/explosion', {
+			method: 'POST',
+			body: JSON.stringify({ explosionInput }),
+			headers: {
+				'content-type': 'application/json'
+			}
+		});
+		let explosionOutput = await response.json();
+		let explosionArray = JSON.parse(explosionOutput);
+		console.log(explosionArray);
+
+		var delayInMilliseconds = 100; // base delay
+		for (let i = 0; i < explosionArray.length; i++) {
+			setTimeout(function () {
+				newConcept.set(explosionArray[i]); // Update the store
+			}, i * delayInMilliseconds); // multiply by index for staggered delay
+		}
+	}
+
 	function handleSubmit() {
 		newConcept.set(inputConcept); // Update the store only on form submission
 		inputConcept = ''; // Reset the input field
 	}
 </script>
 
-<nav class="navbar bg-base-100 gap-3">
-	<h1>Venn</h1>
-	<p>(logo)</p>
-
-	<form on:submit|preventDefault={handleSubmit}>
-		<input type="text" placeholder="Add" bind:value={inputConcept} />
-		<button class="btn btn-ghost normal-case">Add</button>
-	</form>
-	<button
+<nav class="navbar bg-base-100 gap-5">
+	<div class="border-r border-gray-700 pr-5 gap-3">
+		<h1>VENN</h1>
+		<svg width="46" height="29" viewBox="0 0 46 29" fill="none" xmlns="http://www.w3.org/2000/svg">
+			<circle cx="14.5" cy="14.5" r="14" stroke="gray" />
+			<circle cx="31.5" cy="14.5" r="14" stroke="gray" />
+		</svg>
+	</div>
+	<!-- <button
 		class="btn btn-ghost normal-case"
 		on:click={() => {
 			showModal = true;
 		}}>Show Modal</button
-	>
+	> -->
+
+	<form class="gap-2" on:submit|preventDefault={handleSubmit}>
+		<input
+			class="input input-primary input-sm"
+			type="text"
+			placeholder="Concept"
+			bind:value={inputConcept}
+		/>
+		<button class="btn btn-primary btn-sm normal-case">Add Concept</button>
+	</form>
+	<form class="gap-2" on:submit|preventDefault={getExplosion}>
+		<input
+			class="input input-primary input-sm"
+			type="text"
+			placeholder="Topic"
+			bind:value={explosionInput}
+		/>
+		<button class="btn btn-primary btn-sm normal-case">Explode Topic</button>
+	</form>
 </nav>
 
 <P5 {sketch} />
 
 <Modal bind:showModal on:closed={handleClosed}>
 	<h2 slot="header">Venn</h2>
-	<div class="my-4 prose">{@html result}</div>
-	{#if imageurl}
-		<img src={imageurl} alt="Dall-e" />
-	{/if}
+	<div class="flex">
+		<div class="my-4 prose">{@html result}</div>
+		{#if imageurl}
+			<img src={imageurl} alt="Dall-e" />
+		{/if}
+	</div>
 </Modal>
