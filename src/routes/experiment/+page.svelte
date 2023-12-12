@@ -11,23 +11,11 @@
 
 	let selectedConcepts = [];
 
-	// const concepts = [
-	// 	'Random Forests',
-	// 	'Stochastic Gradient Descent',
-	// 	'Neural Networks',
-	// 	'Fine-tuning',
-	// 	'Deep Learning',
-	// 	'Q*',
-	// 	'Reinforcement Learning',
-	// 	'Generative Adversarial Networks',
-	// 	'Support Vector Machines',
-	// 	'Principal Component Analysis'
-	// ];
-
 	const concepts = [
-		'Bible',
 		'Stochastic Gradient Descent',
 		'Teleological Fallacy',
+		'Operational Excellence',
+		'Customer Obsession',
 		'Nietzsche',
 		'Bhagavad Gita',
 		'Tao Te Ching',
