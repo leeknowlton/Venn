@@ -3,6 +3,10 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import { marked } from 'marked';
 	import DOMPurify from 'dompurify';
+	import { writable } from 'svelte/store';
+
+	let newConcept = writable(''); // Svelte store to hold the new concept
+	let inputConcept = ''; // Local variable for form input
 
 	let result = '';
 
@@ -25,6 +29,7 @@
 
 	function handleClosed(event) {
 		selectedConcepts = [];
+		imageurl = '';
 		console.log('Empty concepts array');
 	}
 
@@ -167,6 +172,21 @@
 				bubbles.forEach((b) => (b.selected = false));
 			}
 		};
+
+		p5.windowResized = () => {
+			p5.resizeCanvas(p5.windowWidth, p5.windowHeight);
+		};
+
+		newConcept.subscribe((concept) => {
+			if (concept.trim() !== '') {
+				let x = p5.random(p5.windowWidth);
+				let y = p5.random(p5.windowHeight);
+				let noiseOffsetX = p5.random(1000);
+				let noiseOffsetY = p5.random(1000);
+				bubbles.push(new Bubble(x, y, concept, noiseOffsetX, noiseOffsetY, p5));
+				newConcept.set(''); // Reset the store
+			}
+		});
 
 		class Particle {
 			constructor(x, y, p5) {
@@ -320,7 +340,27 @@
 			}
 		}
 	};
+	function handleSubmit() {
+		newConcept.set(inputConcept); // Update the store only on form submission
+		inputConcept = ''; // Reset the input field
+	}
 </script>
+
+<nav class="navbar bg-base-100 gap-3">
+	<h1>Venn</h1>
+	<p>(logo)</p>
+
+	<form on:submit|preventDefault={handleSubmit}>
+		<input type="text" placeholder="Add" bind:value={inputConcept} />
+		<button class="btn btn-ghost normal-case">Add</button>
+	</form>
+	<button
+		class="btn btn-ghost normal-case"
+		on:click={() => {
+			showModal = true;
+		}}>Show Modal</button
+	>
+</nav>
 
 <P5 {sketch} />
 
