@@ -1,6 +1,6 @@
 <script>
 	import P5 from 'p5-svelte';
-	import Modal from '$lib/components/Modal.svelte';
+	import Modal from '$lib/components/modal.svelte';
 	import { marked } from 'marked';
 	import DOMPurify from 'dompurify';
 	import { writable } from 'svelte/store';
