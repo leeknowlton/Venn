@@ -14,12 +14,9 @@
 	let imageurl = '';
 	let explosionInput = '';
 
-	let definition1 = '';
-	let definition2 = '';
-
 	let selectedConcepts = [];
 
-	const concepts = ['SGD', 'Bhagavad Gita'];
+	const concepts = ['Stochastic Gradient Descent', 'Bhagavad Gita'];
 
 	function handleClosed(event) {
 		selectedConcepts = [];
@@ -28,6 +25,7 @@
 	}
 
 	async function getImage() {
+		imageurl = '';
 		const response = await fetch('/api/dalle', {
 			method: 'POST',
 			body: JSON.stringify({ selectedConcepts }),
@@ -37,32 +35,6 @@
 		});
 		let image = await response.json();
 		imageurl = image.data[0].url;
-	}
-
-	async function getDefinition1() {
-		let concept = selectedConcepts[0];
-		const response = await fetch('/api/definition', {
-			method: 'POST',
-			body: JSON.stringify({ concept }),
-			headers: {
-				'content-type': 'application/json'
-			}
-		});
-		let definition = await response.json();
-		definition1 = definition;
-	}
-
-	async function getDefinition2() {
-		let concept = selectedConcepts[1];
-		const response = await fetch('/api/definition', {
-			method: 'POST',
-			body: JSON.stringify({ concept }),
-			headers: {
-				'content-type': 'application/json'
-			}
-		});
-		let definition = await response.json();
-		definition2 = definition;
 	}
 
 	async function getStream() {
@@ -131,6 +103,10 @@
 			});
 		};
 
+		p5.windowResized = () => {
+			resizeCanvas(windowWidth, windowHeight);
+		};
+
 		p5.draw = () => {
 			p5.background(255);
 
@@ -182,8 +158,6 @@
 						}
 					});
 					getStream();
-					getDefinition1();
-					getDefinition2();
 					getImage();
 					showModal = true;
 					// Remove both bubbles
@@ -387,6 +361,15 @@
 		newConcept.set(inputConcept); // Update the store only on form submission
 		inputConcept = ''; // Reset the input field
 	}
+	const today = new Date();
+	const options = { month: 'short', day: 'numeric', year: 'numeric' };
+	const formattedDate = today.toLocaleDateString('en-US', options);
+	console.log(formattedDate);
+
+	let placeholder = `SGD stands for Stochastic Gradient Descent, which is like a brave explorer trying to find the shortest path down a mountain. It's an optimization algorithm used in machine learning to find the best values for a model's parameters. It takes small steps downhill, guided by the slope of the mountain.
+
+On the other hand, the Bhagavad Gita is like a wise old book that contains teachings from ancient times. It's a sacred Hindu scripture filled with wisdom on life, morality, and self-realization. Just like SGD helps us find the optimal values for a model, the Bhagavad Gita guides us towards finding the optimal path in life and understanding the deeper meaning of existence.
+`;
 </script>
 
 <nav class="navbar bg-base-100 gap-5">
@@ -424,28 +407,118 @@
 	</form>
 </nav>
 
-<P5 {sketch} />
+<div class="flex">
+	<P5 {sketch} />
+</div>
 
 <Modal bind:showModal on:closed={handleClosed}>
-	<h2 slot="header">Venn</h2>
-	<div class="flex gap-5 my-5">
-		<div class="flex flex-col grow prose">
-			<h2 class="mb-2">Definitions</h2>
-			<div class="prose">
-				<h3 class="mb-1">{selectedConcepts[0]}</h3>
-				<div>{definition1}</div>
+	<div class="prose">
+		<p class="mb-2 font-bold">
+			What do {selectedConcepts[0] || 'Concept 1'} and {selectedConcepts[1] || 'Concept 2'} have in common?
+		</p>
+		{#if imageurl}
+			<img class="m-auto rounded" src={imageurl} alt="Dall-e" />
+		{:else}
+			<div class="relative block h-96 w-96">
+				<span class="loader m-auto"></span>
 			</div>
-			<div class="prose mt-5">
-				<h3 class="mb-1">{selectedConcepts[1]}</h3>
-				<div>{definition2}</div>
+		{/if}
+		<!-- <div class="text-sm mt-4">{placeholder}</div> -->
+		<div class="text-sm mt-4">{@html result}</div>
+
+		<div class="flex justify-between mt-5">
+			<div class="flex border border-gray-400 rounded-md text-xs items-center py-1">
+				<div class="border-r border-gray-400 px-2 flex gap-1">
+					VENN
+					<svg
+						width="23"
+						height="14.5"
+						viewBox="0 0 23 14.5"
+						fill="none"
+						xmlns="http://www.w3.org/2000/svg"
+					>
+						<circle cx="7.25" cy="7.25" r="7" stroke="gray" />
+						<circle cx="15.75" cy="7.25" r="7" stroke="gray" />
+					</svg>
+				</div>
+				<div class="px-2">{formattedDate}</div>
 			</div>
-		</div>
-		<div class="prose max-w-xl">
-			<h2 class="mb-2">Venn</h2>
-			<div class="">{@html result}</div>
-			{#if imageurl}
-				<img class="h-96 m-auto" src={imageurl} alt="Dall-e" />
-			{/if}
 		</div>
 	</div>
 </Modal>
+
+<style>
+	.loader {
+		transform: rotateZ(45deg);
+		perspective: 1000px;
+		border-radius: 50%;
+		width: 48px;
+		height: 48px;
+		color: rgb(255, 182, 193);
+	}
+	.loader:before,
+	.loader:after {
+		content: '';
+		display: block;
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		width: inherit;
+		height: inherit;
+		border-radius: 50%;
+		transform: rotateX(70deg);
+		animation: 1s spin linear infinite;
+	}
+	.loader:after {
+		color: rgb(173, 216, 230);
+		transform: rotateY(70deg);
+		animation-delay: 0.4s;
+	}
+
+	@keyframes rotate {
+		0% {
+			transform: translate(-50%, -50%) rotateZ(0deg);
+		}
+		100% {
+			transform: translate(-50%, -50%) rotateZ(360deg);
+		}
+	}
+
+	@keyframes rotateccw {
+		0% {
+			transform: translate(-50%, -50%) rotate(0deg);
+		}
+		100% {
+			transform: translate(-50%, -50%) rotate(-360deg);
+		}
+	}
+
+	@keyframes spin {
+		0%,
+		100% {
+			box-shadow: 0.2em 0px 0 0px currentcolor;
+		}
+		12% {
+			box-shadow: 0.2em 0.2em 0 0 currentcolor;
+		}
+		25% {
+			box-shadow: 0 0.2em 0 0px currentcolor;
+		}
+		37% {
+			box-shadow: -0.2em 0.2em 0 0 currentcolor;
+		}
+		50% {
+			box-shadow: -0.2em 0 0 0 currentcolor;
+		}
+		62% {
+			box-shadow: -0.2em -0.2em 0 0 currentcolor;
+		}
+		75% {
+			box-shadow: 0px -0.2em 0 0 currentcolor;
+		}
+		87% {
+			box-shadow: 0.2em -0.2em 0 0 currentcolor;
+		}
+	}
+</style>

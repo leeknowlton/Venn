@@ -10,7 +10,7 @@ export async function POST({ request }) {
 
 	const image = await openai.images.generate({
 		model: 'dall-e-3',
-		prompt: `Make a visualization of the following two concepts: ${concepts}`
+		prompt: `Make a visualization that merges the similarities between the following two concepts: ${concepts}`
 	});
 
 	return json(image);
