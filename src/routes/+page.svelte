@@ -5,8 +5,8 @@
 	import DOMPurify from 'dompurify';
 	import { writable } from 'svelte/store';
 
-	let newConcept = writable(''); // Svelte store to hold the new concept
-	let inputConcept = ''; // Local variable for form input
+	let newConcept = writable('');
+	let inputConcept = '';
 
 	let result = '';
 
@@ -14,9 +14,12 @@
 	let imageurl = '';
 	let explosionInput = '';
 
+	let definition1 = '';
+	let definition2 = '';
+
 	let selectedConcepts = [];
 
-	const concepts = ['Stochastic Gradient Descent', 'Bhagavad Gita'];
+	const concepts = ['SGD', 'Bhagavad Gita'];
 
 	function handleClosed(event) {
 		selectedConcepts = [];
@@ -34,6 +37,32 @@
 		});
 		let image = await response.json();
 		imageurl = image.data[0].url;
+	}
+
+	async function getDefinition1() {
+		let concept = selectedConcepts[0];
+		const response = await fetch('/api/definition', {
+			method: 'POST',
+			body: JSON.stringify({ concept }),
+			headers: {
+				'content-type': 'application/json'
+			}
+		});
+		let definition = await response.json();
+		definition1 = definition;
+	}
+
+	async function getDefinition2() {
+		let concept = selectedConcepts[1];
+		const response = await fetch('/api/definition', {
+			method: 'POST',
+			body: JSON.stringify({ concept }),
+			headers: {
+				'content-type': 'application/json'
+			}
+		});
+		let definition = await response.json();
+		definition2 = definition;
 	}
 
 	async function getStream() {
@@ -89,14 +118,14 @@
 		let particles = [];
 
 		p5.setup = () => {
-			p5.createCanvas(p5.windowWidth, p5.windowHeight);
+			p5.createCanvas(p5.windowWidth, p5.windowHeight - 64);
 			p5.textFont('Helvetica');
-			p5.textSize(12);
+			p5.textSize(16);
 
 			concepts.forEach((concept, index) => {
 				let x = p5.random(p5.width);
 				let y = p5.random(p5.height);
-				let noiseOffsetX = p5.random(1000);
+				let noiseOffsetX = p5.random(5000);
 				let noiseOffsetY = p5.random(1000);
 				bubbles.push(new Bubble(x, y, concept, noiseOffsetX, noiseOffsetY, p5));
 			});
@@ -153,7 +182,9 @@
 						}
 					});
 					getStream();
-					// getImage();
+					getDefinition1();
+					getDefinition2();
+					getImage();
 					showModal = true;
 					// Remove both bubbles
 					bubbles = bubbles.filter((b) => !b.selected);
@@ -366,12 +397,12 @@
 			<circle cx="31.5" cy="14.5" r="14" stroke="gray" />
 		</svg>
 	</div>
-	<!-- <button
+	<button
 		class="btn btn-ghost normal-case"
 		on:click={() => {
 			showModal = true;
 		}}>Show Modal</button
-	> -->
+	>
 
 	<form class="gap-2" on:submit|preventDefault={handleSubmit}>
 		<input
@@ -397,10 +428,24 @@
 
 <Modal bind:showModal on:closed={handleClosed}>
 	<h2 slot="header">Venn</h2>
-	<div class="flex">
-		<div class="my-4 prose">{@html result}</div>
-		{#if imageurl}
-			<img src={imageurl} alt="Dall-e" />
-		{/if}
+	<div class="flex gap-5 my-5">
+		<div class="flex flex-col grow prose">
+			<h2 class="mb-2">Definitions</h2>
+			<div class="prose">
+				<h3 class="mb-1">{selectedConcepts[0]}</h3>
+				<div>{definition1}</div>
+			</div>
+			<div class="prose mt-5">
+				<h3 class="mb-1">{selectedConcepts[1]}</h3>
+				<div>{definition2}</div>
+			</div>
+		</div>
+		<div class="prose max-w-xl">
+			<h2 class="mb-2">Venn</h2>
+			<div class="">{@html result}</div>
+			{#if imageurl}
+				<img class="h-96 m-auto" src={imageurl} alt="Dall-e" />
+			{/if}
+		</div>
 	</div>
 </Modal>

@@ -23,18 +23,18 @@
 >
 	<!-- svelte-ignore a11y-no-static-element-interactions -->
 	<div on:click|stopPropagation>
+		<button class="button btn-ghost" on:click={closeModal}>x</button>
 		<slot name="header" />
 		<hr />
 		<slot />
 		<hr />
 		<!-- svelte-ignore a11y-autofocus -->
-		<button autofocus on:click={closeModal}>close modal</button>
 	</div>
 </dialog>
 
 <style>
 	dialog {
-		max-width: 32em;
+		max-width: 64em;
 		border-radius: 0.2em;
 		border: none;
 		padding: 0;
@@ -66,8 +66,5 @@
 		to {
 			opacity: 1;
 		}
-	}
-	button {
-		display: block;
 	}
 </style>
