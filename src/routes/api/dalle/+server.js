@@ -1,6 +1,10 @@
 import OpenAI from 'openai';
 import { json } from '@sveltejs/kit';
 
+export const config = {
+	runtime: 'edge'
+};
+
 export async function POST({ request }) {
 	const data = await request.json();
 	console.log(data);
