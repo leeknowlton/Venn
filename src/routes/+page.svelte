@@ -1,30 +1,42 @@
 <script>
-	import P5 from 'p5-svelte';
-	import Modal from '$lib/components/modal.svelte';
+	import { writable } from 'svelte/store';
 	import { marked } from 'marked';
 	import DOMPurify from 'dompurify';
-	import { writable } from 'svelte/store';
 
+	import P5 from 'p5-svelte';
+
+	import Modal from '$lib/components/modal.svelte';
+
+	// Interactive UI Vars
+	const INITIAL_CONCEPTS = ['Stochastic Gradient Descent', 'Bhagavad Gita'];
 	let newConcept = writable('');
 	let inputConcept = '';
-
-	let result = '';
-
+	let selectedConcepts = [];
 	let showModal = false;
+
+	// API Result Vars
+	let vennStreamResult = '';
 	let imageurl = '';
 	let explosionInput = '';
 
-	let selectedConcepts = [];
+	// Other Initial
+	const today = new Date();
+	const options = { month: 'short', day: 'numeric', year: 'numeric' };
+	const formattedDate = today.toLocaleDateString('en-US', options);
 
-	const concepts = ['Stochastic Gradient Descent', 'Bhagavad Gita'];
-
-	function handleClosed(event) {
+	// ------------- UI Functions -------------
+	function handleModalClosed() {
 		selectedConcepts = [];
 		imageurl = '';
-		console.log('Empty concepts array');
 	}
 
-	async function getImage() {
+	function handleAddSubmission() {
+		newConcept.set(inputConcept); // Update the store only on form submission
+		inputConcept = ''; // Reset the input field
+	}
+
+	// ------------- OpenAI API Calls -------------
+	async function getDalleImage() {
 		imageurl = '';
 		const response = await fetch('/api/dalle', {
 			method: 'POST',
@@ -33,12 +45,12 @@
 				'content-type': 'application/json'
 			}
 		});
-		let image = await response.json();
-		imageurl = image.data[0].url;
+		let imageResponse = await response.json();
+		imageurl = imageResponse.data[0].url;
 	}
 
-	async function getStream() {
-		result = '';
+	async function getVennStream() {
+		vennStreamResult = '';
 		const response = await fetch('/api/double', {
 			method: 'POST',
 			body: JSON.stringify({ selectedConcepts }),
@@ -66,25 +78,48 @@
 					const json = JSON.parse(jsonString);
 					if (json.choices && json.choices[0] && json.choices[0].delta) {
 						if (!json.choices[0].delta.content) {
-							processMarkdown(result); // Process the final content
+							processMarkdown(vennStreamResult); // Process the final content
 							break;
 						}
-						// Append only the content part to the result
-						result += json.choices[0].delta.content;
+						// Append only the content part to the vennStreamResult
+						vennStreamResult += json.choices[0].delta.content;
 					}
 				} catch (error) {
 					console.error('Error parsing chunk:', error);
 				}
 			}
 		}
-		processMarkdown(result);
+		processMarkdown(vennStreamResult);
 	}
+
+	async function getExplosion() {
+		const response = await fetch('/api/explosion', {
+			method: 'POST',
+			body: JSON.stringify({ explosionInput }),
+			headers: {
+				'content-type': 'application/json'
+			}
+		});
+		let explosionOutput = await response.json();
+		let explosionArray = JSON.parse(explosionOutput);
+		console.log(explosionArray);
+
+		var delayInMilliseconds = 100; // base delay
+		for (let i = 0; i < explosionArray.length; i++) {
+			setTimeout(function () {
+				newConcept.set(explosionArray[i]); // Update the store
+			}, i * delayInMilliseconds); // multiply by index for staggered delay
+		}
+	}
+
+	// ------------- Utility Functions -------------
 	function processMarkdown(markdown) {
 		const rawHtml = marked(markdown);
 		const safeHtml = DOMPurify.sanitize(rawHtml);
-		result = safeHtml; // Update the result with sanitized HTML
+		vennStreamResult = safeHtml; // Update the vennStreamResult with sanitized HTML
 	}
 
+	// ------------- P5 -------------
 	const sketch = (p5) => {
 		let bubbles = [];
 		let particles = [];
@@ -94,7 +129,7 @@
 			p5.textFont('Helvetica');
 			p5.textSize(16);
 
-			concepts.forEach((concept, index) => {
+			INITIAL_CONCEPTS.forEach((concept, index) => {
 				let x = p5.random(p5.width);
 				let y = p5.random(p5.height);
 				let noiseOffsetX = p5.random(5000);
@@ -157,8 +192,8 @@
 							particles.push(new Particle(bubble.x, bubble.y, p5));
 						}
 					});
-					getStream();
-					getImage();
+					getVennStream();
+					getDalleImage();
 					showModal = true;
 					// Remove both bubbles
 					bubbles = bubbles.filter((b) => !b.selected);
@@ -336,40 +371,6 @@
 			}
 		}
 	};
-
-	async function getExplosion() {
-		const response = await fetch('/api/explosion', {
-			method: 'POST',
-			body: JSON.stringify({ explosionInput }),
-			headers: {
-				'content-type': 'application/json'
-			}
-		});
-		let explosionOutput = await response.json();
-		let explosionArray = JSON.parse(explosionOutput);
-		console.log(explosionArray);
-
-		var delayInMilliseconds = 100; // base delay
-		for (let i = 0; i < explosionArray.length; i++) {
-			setTimeout(function () {
-				newConcept.set(explosionArray[i]); // Update the store
-			}, i * delayInMilliseconds); // multiply by index for staggered delay
-		}
-	}
-
-	function handleSubmit() {
-		newConcept.set(inputConcept); // Update the store only on form submission
-		inputConcept = ''; // Reset the input field
-	}
-	const today = new Date();
-	const options = { month: 'short', day: 'numeric', year: 'numeric' };
-	const formattedDate = today.toLocaleDateString('en-US', options);
-	console.log(formattedDate);
-
-	let placeholder = `SGD stands for Stochastic Gradient Descent, which is like a brave explorer trying to find the shortest path down a mountain. It's an optimization algorithm used in machine learning to find the best values for a model's parameters. It takes small steps downhill, guided by the slope of the mountain.
-
-On the other hand, the Bhagavad Gita is like a wise old book that contains teachings from ancient times. It's a sacred Hindu scripture filled with wisdom on life, morality, and self-realization. Just like SGD helps us find the optimal values for a model, the Bhagavad Gita guides us towards finding the optimal path in life and understanding the deeper meaning of existence.
-`;
 </script>
 
 <nav class="navbar bg-base-100 gap-5">
@@ -387,7 +388,7 @@ On the other hand, the Bhagavad Gita is like a wise old book that contains teach
 		}}>Show Modal</button
 	>
 
-	<form class="gap-2" on:submit|preventDefault={handleSubmit}>
+	<form class="gap-2" on:submit|preventDefault={handleAddSubmission}>
 		<input
 			class="input input-primary input-sm"
 			type="text"
@@ -411,7 +412,7 @@ On the other hand, the Bhagavad Gita is like a wise old book that contains teach
 	<P5 {sketch} />
 </div>
 
-<Modal bind:showModal on:closed={handleClosed}>
+<Modal bind:showModal on:closed={handleModalClosed}>
 	<div class="prose">
 		<p class="mb-2 font-bold">
 			What do {selectedConcepts[0] || 'Concept 1'} and {selectedConcepts[1] || 'Concept 2'} have in common?
@@ -423,8 +424,7 @@ On the other hand, the Bhagavad Gita is like a wise old book that contains teach
 				<span class="loader m-auto"></span>
 			</div>
 		{/if}
-		<!-- <div class="text-sm mt-4">{placeholder}</div> -->
-		<div class="text-sm mt-4">{@html result}</div>
+		<div class="text-sm mt-4">{@html vennStreamResult}</div>
 
 		<div class="flex justify-between mt-5">
 			<div class="flex border border-gray-400 rounded-md text-xs items-center py-1">
@@ -448,77 +448,4 @@ On the other hand, the Bhagavad Gita is like a wise old book that contains teach
 </Modal>
 
 <style>
-	.loader {
-		transform: rotateZ(45deg);
-		perspective: 1000px;
-		border-radius: 50%;
-		width: 48px;
-		height: 48px;
-		color: rgb(255, 182, 193);
-	}
-	.loader:before,
-	.loader:after {
-		content: '';
-		display: block;
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		width: inherit;
-		height: inherit;
-		border-radius: 50%;
-		transform: rotateX(70deg);
-		animation: 1s spin linear infinite;
-	}
-	.loader:after {
-		color: rgb(173, 216, 230);
-		transform: rotateY(70deg);
-		animation-delay: 0.4s;
-	}
-
-	@keyframes rotate {
-		0% {
-			transform: translate(-50%, -50%) rotateZ(0deg);
-		}
-		100% {
-			transform: translate(-50%, -50%) rotateZ(360deg);
-		}
-	}
-
-	@keyframes rotateccw {
-		0% {
-			transform: translate(-50%, -50%) rotate(0deg);
-		}
-		100% {
-			transform: translate(-50%, -50%) rotate(-360deg);
-		}
-	}
-
-	@keyframes spin {
-		0%,
-		100% {
-			box-shadow: 0.2em 0px 0 0px currentcolor;
-		}
-		12% {
-			box-shadow: 0.2em 0.2em 0 0 currentcolor;
-		}
-		25% {
-			box-shadow: 0 0.2em 0 0px currentcolor;
-		}
-		37% {
-			box-shadow: -0.2em 0.2em 0 0 currentcolor;
-		}
-		50% {
-			box-shadow: -0.2em 0 0 0 currentcolor;
-		}
-		62% {
-			box-shadow: -0.2em -0.2em 0 0 currentcolor;
-		}
-		75% {
-			box-shadow: 0px -0.2em 0 0 currentcolor;
-		}
-		87% {
-			box-shadow: 0.2em -0.2em 0 0 currentcolor;
-		}
-	}
 </style>
