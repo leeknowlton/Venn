@@ -8,7 +8,19 @@
 	import Modal from '$lib/components/modal.svelte';
 
 	// Interactive UI Vars
-	const INITIAL_CONCEPTS = ['Stochastic Gradient Descent', 'Bhagavad Gita'];
+	const PRIMARY_CONCEPTS = ['Stochastic Gradient Descent', 'Bhagavad Gita'];
+	const CHOICE_CONCEPTS = [
+		'Determinism',
+		'Optimization',
+		'Conflict Resolution',
+		'Moral Decision Making',
+		'Iterative Progress'
+	];
+	const CORRECT_ANSWER = 'Iterative Progress';
+	const userName = 'Andi';
+
+	let userAnswer = '';
+
 	let newConcept = writable('');
 	let inputConcept = '';
 	let selectedConcepts = [];
@@ -91,6 +103,51 @@
 		}
 		processMarkdown(vennStreamResult);
 	}
+	async function getVennGameStream() {
+		// TODO: Hack variable, need to clean up later
+		selectedConcepts = [CORRECT_ANSWER, PRIMARY_CONCEPTS[0], PRIMARY_CONCEPTS[1]];
+
+		vennStreamResult = '';
+		const response = await fetch('/api/game', {
+			method: 'POST',
+			body: JSON.stringify({ selectedConcepts, userName }),
+			headers: {
+				'content-type': 'application/json'
+			}
+		});
+		const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+		let accumulatedContent = ''; // Accumulate Markdown content here
+
+		while (true) {
+			const { value, done } = await reader.read();
+			if (done) {
+				break;
+			}
+			accumulatedContent += value;
+
+			// Split accumulated data by newline
+			let newlineIndex;
+			while ((newlineIndex = accumulatedContent.indexOf('\n')) !== -1) {
+				const jsonString = accumulatedContent.substring(0, newlineIndex);
+				accumulatedContent = accumulatedContent.substring(newlineIndex + 1);
+
+				try {
+					const json = JSON.parse(jsonString);
+					if (json.choices && json.choices[0] && json.choices[0].delta) {
+						if (!json.choices[0].delta.content) {
+							processMarkdown(vennStreamResult); // Process the final content
+							break;
+						}
+						// Append only the content part to the vennStreamResult
+						vennStreamResult += json.choices[0].delta.content;
+					}
+				} catch (error) {
+					console.error('Error parsing chunk:', error);
+				}
+			}
+		}
+		processMarkdown(vennStreamResult);
+	}
 
 	async function getExplosion() {
 		const response = await fetch('/api/explosion', {
@@ -120,22 +177,34 @@
 	}
 
 	// ------------- P5 -------------
+
 	const sketch = (p5) => {
 		let bubbles = [];
 		let particles = [];
 
-		p5.setup = () => {
-			p5.createCanvas(p5.windowWidth, p5.windowHeight - 64);
-			p5.textFont('Helvetica');
-			p5.textSize(16);
+		// Wall Positions
+		const adjustedScreenHeight = p5.windowHeight - 64;
+		const topWallY = adjustedScreenHeight / 4.5;
+		const bottomWallY = (2 * adjustedScreenHeight) / 2.5;
+		const wallHeight = 5;
 
-			INITIAL_CONCEPTS.forEach((concept, index) => {
+		p5.setup = () => {
+			p5.createCanvas(p5.windowWidth, adjustedScreenHeight);
+			p5.textFont('Helvetica');
+			p5.textSize(10);
+			bubbles.push(new PrimaryBubble(p5.width / 2, 80, PRIMARY_CONCEPTS[0], 0, 0, p5, true));
+			// Top static bubble
+			bubbles.push(
+				new PrimaryBubble(p5.width / 2, p5.height - 80, PRIMARY_CONCEPTS[1], 0, 0, p5, true)
+			); // Bottom static bubble
+			for (let i = 0; i < CHOICE_CONCEPTS.length; i++) {
 				let x = p5.random(p5.width);
-				let y = p5.random(p5.height);
+				// Note: Extra minus integer so it doesn't get stuck in the wall
+				let y = p5.random(topWallY + wallHeight + 10, bottomWallY - wallHeight - 10);
 				let noiseOffsetX = p5.random(5000);
 				let noiseOffsetY = p5.random(1000);
-				bubbles.push(new Bubble(x, y, concept, noiseOffsetX, noiseOffsetY, p5));
-			});
+				bubbles.push(new Bubble(x, y, CHOICE_CONCEPTS[i], noiseOffsetX, noiseOffsetY, p5));
+			}
 		};
 
 		p5.windowResized = () => {
@@ -144,6 +213,10 @@
 
 		p5.draw = () => {
 			p5.background(255);
+
+			p5.fill(0); // Black color for walls
+			p5.rect(0, topWallY, p5.width, wallHeight); // Top wall
+			p5.rect(0, bottomWallY, p5.width, wallHeight); // Bottom wall
 
 			for (let i = particles.length - 1; i >= 0; i--) {
 				particles[i].update();
@@ -173,31 +246,48 @@
 			// Check if a bubble was clicked
 			for (let i = bubbles.length - 1; i >= 0; i--) {
 				if (bubbles[i].contains(p5.mouseX, p5.mouseY)) {
-					selectedConcepts = [...selectedConcepts, bubbles[i].text];
+					userAnswer = bubbles[i].text;
 					clickedBubbleIndex = i;
 					break;
 				}
 			}
 
 			if (clickedBubbleIndex !== null) {
-				// Toggle selection state of the clicked bubble
-				bubbles[clickedBubbleIndex].toggleSelected();
-
-				// Check if two bubbles are selected
-				const selectedBubbles = bubbles.filter((b) => b.selected);
-				if (selectedBubbles.length === 2) {
-					// Create explosion for both selected bubbles
-					selectedBubbles.forEach((bubble) => {
-						for (let j = 0; j < 10; j++) {
-							particles.push(new Particle(bubble.x, bubble.y, p5));
-						}
+				if (userAnswer == CORRECT_ANSWER) {
+					bubbles.forEach((bubble) => {
+						particles.push(new Particle(bubble.x, bubble.y, p5));
+						bubbles = bubbles.filter((b) => b.correctAnswer || b.primary);
 					});
-					getVennStream();
+					getVennGameStream();
 					getDalleImage();
 					showModal = true;
-					// Remove both bubbles
+				} else {
+					console.log(clickedBubbleIndex);
+					bubbles[clickedBubbleIndex].toggleSelected();
+					particles.push(
+						new Particle(bubbles[clickedBubbleIndex].x, bubbles[clickedBubbleIndex].y, p5)
+					);
 					bubbles = bubbles.filter((b) => !b.selected);
 				}
+				console.log('Correct Answer?: ' + (userAnswer == CORRECT_ANSWER));
+				// Toggle selection state of the clicked bubble
+				// bubbles[clickedBubbleIndex].toggleSelected();
+
+				// Check if two bubbles are selected
+				// const selectedBubbles = bubbles.filter((b) => b.selected);
+				// if (selectedBubbles.length === 2) {
+				// 	// Create explosion for both selected bubbles
+				// 	selectedBubbles.forEach((bubble) => {
+				// 		for (let j = 0; j < 10; j++) {
+				// 			particles.push(new Particle(bubble.x, bubble.y, p5));
+				// 		}
+				// 	});
+				// 	getVennStream();
+				// 	getDalleImage();
+				// 	showModal = true;
+				// 	// Remove both bubbles
+				// 	bubbles = bubbles.filter((b) => !b.selected);
+				// }
 			} else {
 				// Clicked outside a bubble, reset selections
 				bubbles.forEach((b) => (b.selected = false));
@@ -247,7 +337,8 @@
 		}
 
 		class Bubble {
-			constructor(x, y, text, noiseOffsetX, noiseOffsetY, p5) {
+			constructor(x, y, text, noiseOffsetX, noiseOffsetY, p5, isStatic = false) {
+				this.isStatic = isStatic;
 				this.x = x;
 				this.y = y;
 				this.text = text;
@@ -263,7 +354,8 @@
 				this.eyeOffsetX = this.radius / 3; // Horizontal offset for the eyes
 				this.eyeOffsetY = -this.eyeSize; // Vertical offset for the eyes
 				this.pupilSize = this.eyeSize / 2;
-				this.blobColor = p5.color(255, 223, 0); // Yellow color for the blob
+				this.correctAnswer = this.text == CORRECT_ANSWER;
+				this.primary = false;
 			}
 
 			toggleSelected() {
@@ -271,8 +363,10 @@
 			}
 
 			move() {
-				this.x += this.dx;
-				this.y += this.dy;
+				if (!this.isStatic) {
+					this.x += this.dx;
+					this.y += this.dy;
+				}
 			}
 
 			changeDirection() {
@@ -284,7 +378,8 @@
 				if (this.x - this.radius <= 0 || this.x + this.radius >= this.p5.width) {
 					this.dx *= -1;
 				}
-				if (this.y - this.radius <= 0 || this.y + this.radius >= this.p5.height) {
+
+				if (this.y - this.radius <= topWallY + wallHeight || this.y + this.radius >= bottomWallY) {
 					this.dy *= -1;
 				}
 			}
@@ -298,29 +393,7 @@
 				return d < this.radius;
 			}
 
-			display() {
-				// Draw the squiggly blob
-				this.p5.push();
-				this.p5.translate(this.x, this.y);
-				this.p5.beginShape();
-				const numPoints = 100;
-				const angleStep = this.p5.TWO_PI / numPoints;
-				for (let i = 0; i <= numPoints; i++) {
-					let angle = i * angleStep;
-					let radiusOffset =
-						this.squiggleAmplitude * this.p5.sin(6 * angle + this.p5.millis() / 500);
-					let x = (this.radius + radiusOffset) * this.p5.cos(angle);
-					let y = (this.radius + radiusOffset) * this.p5.sin(angle);
-					this.p5.vertex(x, y);
-				}
-				if (this.selected) {
-					this.p5.fill(255, 182, 193);
-				} else {
-					this.p5.fill(173, 216, 230);
-				}
-				this.p5.endShape(this.p5.CLOSE);
-				this.p5.pop();
-
+			drawEyes() {
 				// Draw the eyes
 				this.p5.fill(255); // White for the eyes
 				this.p5.ellipse(
@@ -362,12 +435,73 @@
 					this.pupilSize,
 					this.pupilSize
 				);
+			}
 
+			drawText() {
 				// Draw the text
 				this.p5.fill(0); // Black for the text
 				this.p5.noStroke();
 				this.p5.textAlign(this.p5.CENTER, this.p5.CENTER);
 				this.p5.text(this.text, this.x, this.y + this.eyeOffsetY + this.eyeSize * 2);
+			}
+
+			display() {
+				// Draw the squiggly blob
+				this.p5.push();
+				if (this.isStatic) {
+					p5.color(255, 223, 0);
+				}
+				this.p5.translate(this.x, this.y);
+				this.p5.beginShape();
+				const numPoints = 100;
+				const angleStep = this.p5.TWO_PI / numPoints;
+				for (let i = 0; i <= numPoints; i++) {
+					let angle = i * angleStep;
+					let radiusOffset =
+						this.squiggleAmplitude * this.p5.sin(6 * angle + this.p5.millis() / 500);
+					let x = (this.radius + radiusOffset) * this.p5.cos(angle);
+					let y = (this.radius + radiusOffset) * this.p5.sin(angle);
+					this.p5.vertex(x, y);
+				}
+				if (this.selected) {
+					this.p5.fill(255, 182, 193);
+				} else {
+					this.p5.fill(173, 216, 230);
+				}
+				this.p5.endShape(this.p5.CLOSE);
+				this.p5.pop();
+
+				this.drawEyes();
+				this.drawText();
+			}
+		}
+
+		class PrimaryBubble extends Bubble {
+			constructor(x, y, text, noiseOffsetX, noiseOffsetY, p5, isStatic = false, blobColor) {
+				super(x, y, text, noiseOffsetX, noiseOffsetY, p5, isStatic);
+				this.blobColor = blobColor || p5.color(255, 223, 0); // Default to yellow if no color provided
+				this.primary = true;
+			}
+			display() {
+				this.p5.push();
+				this.p5.translate(this.x, this.y);
+				this.p5.beginShape();
+				const numPoints = 100;
+				const angleStep = this.p5.TWO_PI / numPoints;
+				for (let i = 0; i <= numPoints; i++) {
+					let angle = i * angleStep;
+					let radiusOffset =
+						this.squiggleAmplitude * this.p5.sin(6 * angle + this.p5.millis() / 500);
+					let x = (this.radius + radiusOffset) * this.p5.cos(angle);
+					let y = (this.radius + radiusOffset) * this.p5.sin(angle);
+					this.p5.vertex(x, y);
+				}
+				this.p5.fill(this.blobColor); // Use the blobColor for fill
+				this.p5.endShape(this.p5.CLOSE);
+				this.p5.pop();
+
+				super.drawEyes();
+				super.drawText();
 			}
 		}
 	};
@@ -380,6 +514,15 @@
 			<circle cx="14.5" cy="14.5" r="14" stroke="gray" />
 			<circle cx="31.5" cy="14.5" r="14" stroke="gray" />
 		</svg>
+	</div>
+	<div class="text-neutral-content gap-2 pr-5 border-r border-gray-700">
+		<h2 class="text-neutral uppercase text-xs">Level</h2>
+		<h2 class="text-primary font-bold">1</h2>
+		<h2>2</h2>
+		<h2>3</h2>
+		<h2>4</h2>
+		<h2>5</h2>
+		<h2>6</h2>
 	</div>
 	<button
 		class="btn btn-ghost normal-case"
@@ -415,7 +558,7 @@
 <Modal bind:showModal on:closed={handleModalClosed}>
 	<div class="prose">
 		<p class="mb-2 font-bold">
-			What do {selectedConcepts[0] || 'Concept 1'} and {selectedConcepts[1] || 'Concept 2'} have in common?
+			What do {selectedConcepts[1] || 'Concept 1'} and {selectedConcepts[2] || 'Concept 2'} have in common?
 		</p>
 		{#if imageurl}
 			<img class="m-auto rounded" src={imageurl} alt="Dall-e" />
@@ -441,6 +584,7 @@
 						<circle cx="15.75" cy="7.25" r="7" stroke="gray" />
 					</svg>
 				</div>
+				<div class="px-2 border-r border-gray-400">{userName}</div>
 				<div class="px-2">{formattedDate}</div>
 			</div>
 		</div>
